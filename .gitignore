@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+.venv/
+.env
+.env.*
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Logs
+logs/
+
+# Node
+node_modules/
+
+# Netlify build
+.netlify/
+
+# Local uvicorn log
+agents_uvicorn.log
