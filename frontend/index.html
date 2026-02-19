@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Revive Unified</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Revive</h1>
+    <nav><a href="/">Home</a> · <a href="/admin.html">Admin</a></nav>
+  </header>
+  <main id="content">
+    <h2>Posts</h2>
+    <div id="posts">Loading…</div>
+  </main>
+
+  <script>
+    async function load(){
+      const res = await fetch('/api/posts');
+      if(!res.ok){ document.getElementById('posts').innerText='Error'; return }
+      const posts = await res.json();
+      const out = posts.map(p=>`<article><h3>${p.title}</h3><p>${p.excerpt||''}</p><a href='/post.html?id=${p.id}'>Read</a> <span>${p.publish_date||''}</span></article>`).join('\n');
+      document.getElementById('posts').innerHTML = out || '<p>No posts yet</p>';
+    }
+    load();
+  </script>
+</body>
+</html>

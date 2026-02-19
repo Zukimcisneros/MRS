@@ -1,0 +1,5 @@
+body{font-family:system-ui,Arial;margin:0;padding:0;color:#222}
+header{background:#0a6;padding:12px;color:white}
+main{padding:16px}
+input,textarea{display:block;width:100%;margin:6px 0;padding:8px}
+article{border-bottom:1px solid #eee;padding:8px 0}

@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin - Revive</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Admin</h1>
+    <nav><a href="/">Home</a></nav>
+  </header>
+  <main>
+    <section id="login">
+      <h2>Login</h2>
+      <input id="password" type="password" placeholder="Admin password" />
+      <button id="btnLogin">Login</button>
+      <p id="loginMsg"></p>
+    </section>
+
+    <section id="editor" style="display:none">
+      <h2>Create Post</h2>
+      <input id="title" placeholder="Title" />
+      <textarea id="body" placeholder="Body"></textarea>
+      <input id="excerpt" placeholder="Excerpt" />
+      <input id="image" type="file" />
+      <label>Publish now <input id="publish" type="checkbox"/></label>
+      <button id="btnCreate">Create</button>
+      <p id="status"></p>
+    </section>
+  </main>
+
+  <script>
+    let token = null;
+    document.getElementById('btnLogin').addEventListener('click', ()=>{
+      const pw = document.getElementById('password').value;
+      token = pw; // token is password for now
+      document.getElementById('login').style.display='none';
+      document.getElementById('editor').style.display='block';
+    });
+
+    document.getElementById('btnCreate').addEventListener('click', async ()=>{
+      const title = document.getElementById('title').value;
+      const body = document.getElementById('body').value;
+      const excerpt = document.getElementById('excerpt').value;
+      const publish = document.getElementById('publish').checked;
+      const imageEl = document.getElementById('image');
+      let imageUrl = '';
+      if(imageEl.files.length){
+        const fd = new FormData(); fd.append('file', imageEl.files[0]);
+        const r = await fetch('/api/upload', { method:'POST', body: fd, headers: { 'Authorization': 'Bearer '+token } });
+        const jr = await r.json(); imageUrl = jr.url || '';
+      }
+      const payload = { title, body, excerpt, image: imageUrl, published: publish };
+      const res = await fetch('/api/posts', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer '+token }, body: JSON.stringify(payload) });
+      const j = await res.json();
+      document.getElementById('status').innerText = j.ok ? 'Created' : 'Error';
+    });
+  </script>
+</body>
+</html>
