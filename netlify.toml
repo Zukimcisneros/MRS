@@ -9,3 +9,19 @@
   from = "/"
   to = "/index.html"
   status = 200
+
+# Branch contexts: configure each Netlify site to build from a different branch
+# and Netlify will use the matching context publish directory.
+# Example: create a branch named `podcast` and point the podcast site to build
+# from that branch. The `podcast` branch will publish the `podcast_mystical`
+# folder while production (main) continues to publish `dashboard`.
+
+[context.production]
+  # production branch (e.g. `main` or `master`) - default site
+  publish = "dashboard"
+  functions = "netlify/functions"
+
+[context.branch-podcast]
+  # replace `branch-podcast` with the actual branch name you will use
+  publish = "podcast_mystical"
+  functions = "netlify/functions"
