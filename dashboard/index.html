@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Revive Control Panel</title>
+  <style>body{font-family:system-ui,Arial;padding:20px;max-width:900px;margin:auto}h1{font-size:20px}pre{background:#f6f8fa;padding:10px;border-radius:6px}</style>
+</head>
+<body>
+  <h1>Revive Control Panel (Dashboard)</h1>
+  <p>
+    Environment: <select id="env"><option value="netlify">Netlify Proxy</option><option value="local">Local Backend</option></select>
+  </p>
+
+  <section>
+    <h2>Settings</h2>
+    <pre id="settings">loading…</pre>
+    <button id="refresh">Refresh</button>
+    <button id="togglePost">Toggle post_daily</button>
+  </section>
+
+  <section>
+    <h2>Queue</h2>
+    <div id="queueContainer">loading…</div>
+    <p>
+      <button id="refreshQueue">Refresh Queue</button>
+      <button id="runQueueDry">Run Queue (dry-run)</button>
+      <button id="runQueueLive">Run Queue (live)</button>
+    </p>
+  </section>
+
+  <section>
+    <h2>Decision Logs</h2>
+    <div id="decisions">loading…</div>
+    <p><button id="refreshDecisions">Refresh Decisions</button></p>
+    <div id="decisionPreview"></div>
+  </section>
+
+  <script>
+    const envSelect = document.getElementById('env');
+    function apiRequest(opts){
+      const env = envSelect.value;
+      if(env === 'local'){
+        // local direct call
+        const url = 'http://127.0.0.1:8080' + opts.path;
+        return fetch(url, { method: opts.method || 'GET', headers: { 'Authorization': 'Bearer devtoken', 'Content-Type':'application/json'}, body: opts.body?JSON.stringify(opts.body):undefined }).then(r=>r.json())
+      }
+      // netlify proxy
+      return fetch('/.netlify/functions/proxy', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ method: opts.method||'GET', path: opts.path, body: opts.body }) }).then(r=>r.json()).then(x=>x.data)
+    }
+
+    async function loadSettings(){
+      try{
+        const s = await apiRequest({path: '/settings'});
+        document.getElementById('settings').textContent = JSON.stringify(s, null, 2);
+      }catch(e){ document.getElementById('settings').textContent = String(e) }
+    }
+
+    function renderQueueItems(items){
+      const container = document.getElementById('queueContainer');
+      if(!items || !items.items || items.items.length === 0){
+        container.textContent = 'Queue is empty';
+        return;
+      }
+      container.innerHTML = '';
+      items.items.forEach(it => {
+        const idx = it.index;
+        const obj = it.item;
+        const card = document.createElement('div');
+        card.style.border = '1px solid #ddd';
+        card.style.padding = '8px';
+        card.style.margin = '6px 0';
+        const title = document.createElement('div');
+        title.innerHTML = `<strong>${obj.title || '(no title)'}</strong> — ${obj.submolt || ''}`;
+        const body = document.createElement('pre');
+        body.textContent = obj.content || JSON.stringify(obj, null, 2);
+        const meta = document.createElement('div');
+        meta.style.fontSize = '12px';
+        meta.textContent = `Index: ${idx} | approved: ${obj.approved ? 'yes' : 'no'}`;
+        const btnApprove = document.createElement('button');
+        btnApprove.textContent = 'Approve';
+        btnApprove.style.marginRight = '8px';
+        btnApprove.onclick = async () => {
+          try{
+            await apiRequest({method:'POST', path:'/queue/approve', body:{index: idx}});
+            await loadQueue();
+          }catch(e){ alert('approve failed '+e) }
+        };
+        card.appendChild(title);
+        card.appendChild(meta);
+        card.appendChild(body);
+        card.appendChild(btnApprove);
+        container.appendChild(card);
+      });
+    }
+
+    async function loadQueue(){
+      try{
+        const q = await apiRequest({path: '/queue'});
+        renderQueueItems(q);
+      }catch(e){ document.getElementById('queueContainer').textContent = String(e) }
+    }
+
+    async function runQueue(live){
+      try{
+        const r = await apiRequest({method:'POST', path:'/queue/process', body: {live: live, limit: 20}});
+        alert('Processed: ' + (r.processed||r.data?.processed || 0) + ' (live=' + live + ')');
+        await loadQueue();
+      }catch(e){ alert('Queue run failed '+e) }
+    }
+
+    async function loadDecisions(){
+      try{
+        const list = await apiRequest({path: '/decisions'});
+        const container = document.getElementById('decisions');
+        container.innerHTML = '';
+        (list.files || []).forEach(name => {
+          const btn = document.createElement('button');
+          btn.textContent = name;
+          btn.style.display = 'block';
+          btn.onclick = async ()=>{
+            const data = await apiRequest({path: '/decisions/'+name});
+            document.getElementById('decisionPreview').textContent = JSON.stringify(data, null, 2);
+            const enqueueBtn = document.createElement('button');
+            enqueueBtn.textContent = 'Enqueue promos from this decision';
+            enqueueBtn.onclick = async ()=>{
+              try{
+                const res = await apiRequest({method:'POST', path:'/decisions/enqueue', body:{name: name, only_unapproved: true}});
+                alert('Enqueued: ' + (res.enqueued || res.data?.enqueued || 0));
+                await loadQueue();
+              }catch(e){ alert('enqueue failed '+e) }
+            };
+            const previewDiv = document.getElementById('decisionPreview');
+            previewDiv.appendChild(document.createElement('hr'));
+            previewDiv.appendChild(enqueueBtn);
+          };
+          container.appendChild(btn);
+        });
+      }catch(e){ document.getElementById('decisions').textContent = String(e) }
+    }
+
+
+    document.getElementById('refresh').addEventListener('click', loadSettings);
+    document.getElementById('refreshQueue').addEventListener('click', loadQueue);
+    document.getElementById('runQueueDry').addEventListener('click', ()=>runQueue(false));
+    document.getElementById('runQueueLive').addEventListener('click', ()=>runQueue(true));
+    document.getElementById('togglePost').addEventListener('click', async ()=>{
+      try{
+        const s = await apiRequest({path:'/settings'});
+        s.post_daily = !s.post_daily;
+        const r = await apiRequest({method:'POST', path:'/settings', body: s});
+        document.getElementById('settings').textContent = JSON.stringify(r, null, 2);
+      }catch(e){ alert('error '+e) }
+    });
+
+    loadSettings(); loadQueue();
+  </script>
+</body>
+</html>

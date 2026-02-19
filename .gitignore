@@ -1,1 +1,25 @@
+# Secrets / env
 .env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+.venv/
+*.pyc
+*.pyo
+*.pyd
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Logs
+logs/
+
+# Node
+node_modules/
+
+# Netlify build
+.netlify/
