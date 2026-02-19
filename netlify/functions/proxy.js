@@ -22,7 +22,14 @@ exports.handler = async function(event) {
   const BACKEND_URL = process.env.BACKEND_URL || '';
   const AGENT_TOKEN = process.env.AGENT_TOKEN || '';
   if (!BACKEND_URL) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'BACKEND_URL not configured' }) };
+    // Degrade gracefully: return informative payload so the frontend can show
+    // a helpful message instead of a generic 500 error. This avoids the
+    // dashboard appearing broken when environment variables are not set.
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ status: 'no_backend_configured', message: 'BACKEND_URL is not configured in Netlify environment. Set BACKEND_URL and AGENT_TOKEN in Site settings or choose Local backend in the dashboard.' })
+    };
   }
 
   const method = (payload.method || 'GET').toUpperCase();
